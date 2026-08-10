@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIAM-HRBP HR Dashboard Generator</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2canvas for Image Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Prompt -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+            --c1: #059669; /* Green */
+            --c2: #1d4ed8; /* Blue */
+            --c3: #6d28d9; /* Purple */
+            --c4: #ea580c; /* Orange */
+            --c5: #0f766e; /* Teal */
+            --c6: #d97706; /* Gold/Amber */
+            --c7: #15803d; /* Dark Green */
+            --c8: #1e40af; /* Indigo */
+            --c9: #be123c; /* Rose */
+            --c10: #334155; /* Slate */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* No scrolling */
+        }
+
+        /* Top Navigation Header */
+        header {
+            height: 48px;
+            background: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #0f172a;
+        }
+
+        .brand i {
+            color: #2563eb;
+            font-size: 1.3rem;
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .tab-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            background: #f8fafc;
+            color: var(--text-dark);
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-export {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+
+        .btn-export:hover {
+            background: #059669;
+        }
+
+        /* Main Workspace Container */
+        main {
+            flex: 1;
+            padding: 8px;
+            height: calc(100vh - 72px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 10 Dashboard Cards Grid Layout (2 Rows x 5 Cols) */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Card Container Styling */
+        .dash-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            position: relative;
+        }
+
+        .dash-card.disabled-card {
+            opacity: 0.25;
+            background: #e2e8f0;
+            filter: grayscale(0.8);
+        }
+
+        /* Card Header */
+        .card-hdr {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1.5px solid #f1f5f9;
+        }
+
+        .card-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .hdr-title-group {
+            line-height: 1.1;
+            overflow: hidden;
+        }
+
+        .hdr-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .hdr-subtitle {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        /* Card Content Container */
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 2px;
+            min-height: 0;
+            font-size: 0.7rem;
+        }
+
+        /* Generic Helper Classes */
+        .stat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            line-height: 1.2;
+        }
+
+        .stat-item-left {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #334155;
+            font-size: 0.68rem;
+        }
+
+        .stat-val {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 0.72rem;
+        }
+
+        .chart-box {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chart-box canvas {
+            max-height: 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* Specific Module Styling */
+        .funnel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            width: 100%;
+            margin: 1px 0;
+        }
+
+        .funnel-step {
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.62rem;
+            border-radius: 2px;
+        }
+
+        .big-cost-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fffbe3;
+            border-radius: 6px;
+            padding: 3px 6px;
+            border: 1px solid #fef3c7;
+        }
+
+        .big-cost-banner i {
+            font-size: 1.5rem;
+            color: #f59e0b;
+        }
+
+        .cost-text-group .lbl {
+            font-size: 0.62rem;
+            color: #78350f;
+        }
+
+        .cost-text-group .val {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #b45309;
+            line-height: 1;
+        }
+
+        .rating-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #f0fdf4;
+            padding: 3px;
+            border-radius: 6px;
+        }
+
+        .rating-box i {
+            font-size: 1.5rem;
+            color: #eab308;
+        }
+
+        .rating-num {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #15803d;
+            line-height: 1;
+        }
+
+        .training-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f9ff;
+            padding: 3px 6px;
+            border-radius: 6px;
+            border: 1px solid #e0f2fe;
+        }
+
+        .training-banner i {
+            font-size: 1.5rem;
+            color: #0284c7;
+        }
+
+        .engage-hero {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff1f2;
+            padding: 3px 6px;
+            border-radius: 6px;
+        }
+
+        .engage-hero i {
+            font-size: 1.6rem;
+            color: #f43f5e;
+        }
+
+        .enps-box {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8fafc;
+            padding: 3px 6px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Form Tab Controls Layout */
+        .config-header-bar {
+            background: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .form-grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            height: calc(100% - 46px);
+        }
+
+        .form-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .form-group label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .form-control {
+            padding: 4px 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            width: 100%;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+        }
+
+        .btn-open-popup {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: background 0.2s;
+            margin-top: 4px;
+        }
+
+        .btn-open-popup:hover {
+            background: #1d4ed8;
+        }
+
+        /* Modal Overlay & Dialog */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 10px;
+            width: 520px;
+            max-width: 90vw;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            animation: popIn 0.2s ease-out;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-footer {
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .btn-modal-save {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .btn-modal-cancel {
+            background: #e2e8f0;
+            color: #475569;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Footer */
+        footer {
+            height: 24px;
+            background: #0f172a;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 400;
+            flex-shrink: 0;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation Bar -->
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>SIAM-HRBP Dashboard Generator</span>
+        </div>
+        <div class="nav-controls">
+            <button class="tab-btn active" id="btn-tab-input" onclick="switchTab('input')">
+                <i class="fa-solid fa-pen-to-square"></i> 1. กรอกข้อมูล & ตั้งค่า
+            </button>
+            <button class="tab-btn" id="btn-tab-dashboard" onclick="switchTab('dashboard')">
+                <i class="fa-solid fa-table-cells-large"></i> 2. แสดง Dashboard
+            </button>
+            <button class="btn-export" onclick="exportDashboardImage()">
+                <i class="fa-solid fa-camera"></i> ส่งออกรูปภาพ
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main>
+        <!-- TAB 1: FORM INPUT & SLOT CONFIGURATION -->
+        <div id="tab-input" class="tab-content active">
+            <div class="config-header-bar">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label for="db-count-select" style="font-size:0.82rem; font-weight:700;">จำนวนฐานข้อมูลที่แสดง:</label>
+                    <select id="db-count-select" class="form-control" style="width: auto; font-weight:700;" onchange="handleDbCountChange()">
+                        <option value="6">6 หัวข้อ</option>
+                        <option value="7">7 หัวข้อ</option>
+                        <option value="8">8 หัวข้อ</option>
+                        <option value="9">9 หัวข้อ</option>
+                        <option value="10" selected>10 หัวข้อ (ทั้งหมด)</option>
+                    </select>
+                </div>
+                <div style="font-size:0.75rem; color:#64748b;">
+                    <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> คลิกปุ่ม <b>"กรอกข้อมูลเพิ่มเติม"</b> ในแต่ละหัวข้อเพื่อเปิด Pop-up แก้ไขค่าทั้งหมด
+                </div>
+            </div>
+
+            <div class="form-grid-container" id="form-cards-wrapper">
+                <!-- Form cards generated dynamically -->
+            </div>
+        </div>
+
+        <!-- TAB 2: DASHBOARD VIEW -->
+        <div id="tab-dashboard" class="tab-content">
+            <div class="dashboard-grid" id="dashboard-cards-wrapper">
+                <!-- Dashboard cards generated dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <!-- POPUP MODAL FOR INPUT DATA -->
+    <div class="modal-overlay" id="input-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title-text">
+                    <span id="modal-num-badge" class="card-num" style="background:#2563eb;">1</span>
+                    <span id="modal-title-main">แก้ไขข้อมูล</span>
+                </div>
+                <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" id="modal-body-content">
+                <!-- Inputs injected dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeModal()">ยกเลิก</button>
+                <button class="btn-modal-save" onclick="saveModalData()"><i class="fa-solid fa-floppy-disk"></i> Save & บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        © 2025 SIAM-HRBP Soft
+    </footer>
+
+    <script>
+        // Data Store matching original image 100%
+        const store = {
+            activeCount: 10,
+            positions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // Map module ID (1..10) to Slot (1..10)
+            m1: {
+                current: 1250,
+                newHire: 120,
+                turnover: 95,
+                contract: 210,
+                dept: { prod: 28, sales: 25, it: 15, hr: 10, fin: 10, other: 12 }
+            },
+            m2: {
+                monthly: [6, 9, 6, 11, 6, 8],
+                dept: { prod: 13.2, sales: 11.5, it: 8.7, hr: 6.8, fin: 5.6 },
+                tenure: { lt1: 32, t1_3: 18, t3_5: 9, gt5: 5 }
+            },
+            m3: {
+                openings: 80,
+                applicants: 620,
+                interviews: 310,
+                offers: 140,
+                hired: 95,
+                timeToHire: 32,
+                costPerHire: 8450,
+                hardRoles: "Senior Developer, Sales Manager"
+            },
+            m4: {
+                attendance: 96.2,
+                absence: 2.1,
+                late: 3.7,
+                otHours: 1250,
+                leave: { sick: 45, personal: 25, vacation: 20, maternity: 7, other: 3 }
+            },
+            m5: {
+                age: { lt25: 12, a25_34: 34, a35_44: 27, a45_54: 18, gt54: 9 },
+                avgTenure: 4.6,
+                permanentPct: 83,
+                contractPct: 17,
+                malePct: 58,
+                femalePct: 42
+            },
+            m6: {
+                totalCost: 125.6,
+                salary: 85.2,
+                salaryPct: 67.8,
+                ot: 8.4,
+                otPct: 6.7,
+                bonus: 15.3,
+                bonusPct: 12.2,
+                welfare: 9.1,
+                welfarePct: 7.3,
+                other: 7.6,
+                otherPct: 6.0,
+                costPerHead: 100480
+            },
+            m7: {
+                avgScore: 4.18,
+                grades: { excel: 12, vgood: 38, good: 32, fair: 12, improve: 6 },
+                topPerformers: 112,
+                needDev: 58
+            },
+            m8: {
+                totalHours: 4850,
+                budget: 2.45,
+                joinRate: 88,
+                passRate: 92,
+                skillGaps: "Data Analytics, Leadership, Digital Marketing"
+            },
+            m9: {
+                score: 82,
+                scoreDiff: "+5% vs ปีก่อน",
+                enps: 42,
+                enpsLabel: "ดีมาก",
+                concerns: { pay: 32, career: 27, workload: 21, env: 12, other: 8 }
+            },
+            m10: {
+                headcount: 1250,
+                newHires: 120,
+                turnoverRate: 7.6,
+                absenceRate: 2.1,
+                timeToHire: 32,
+                costPerHire: 8450,
+                trainingHours: 4850,
+                engagementScore: 82
+            }
+        };
+
+        let chartInstances = {};
+        let currentEditingModId = null;
+
+        // Module Metadata
+        const modulesMeta = [
+            { id: 1, color: "var(--c1)", num: "1", title: "Headcount Summary", sub: "สรุปจำนวนพนักงาน" },
+            { id: 2, color: "var(--c2)", num: "2", title: "Turnover Rate", sub: "อัตราการลาออก" },
+            { id: 3, color: "var(--c3)", num: "3", title: "New Hire & Recruitment", sub: "การสรรหาและคัดเลือก" },
+            { id: 4, color: "var(--c4)", num: "4", title: "Attendance & Leave", sub: "การเข้าออกงานและการลา" },
+            { id: 5, color: "var(--c5)", num: "5", title: "Employee Demographics", sub: "โครงสร้างพนักงาน" },
+            { id: 6, color: "var(--c6)", num: "6", title: "Payroll & Workforce Cost", sub: "ต้นทุนบุคลากร" },
+            { id: 7, color: "var(--c7)", num: "7", title: "Performance Management", sub: "การบริหารผลการปฏิบัติงาน" },
+            { id: 8, color: "var(--c8)", num: "8", title: "Training & Development", sub: "การพัฒนาและฝึกอบรม" },
+            { id: 9, color: "var(--c9)", num: "9", title: "Employee Engagement", sub: "ความผูกพันของพนักงาน" },
+            { id: 10, color: "var(--c10)", num: "10", title: "HR KPI Summary", sub: "สรุป KPI สำคัญ" }
+        ];
+
+        // Tab Switcher
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            if (tabName === 'input') {
+                document.getElementById('tab-input').classList.add('active');
+                document.getElementById('btn-tab-input').classList.add('active');
+            } else {
+                document.getElementById('tab-dashboard').classList.add('active');
+                document.getElementById('btn-tab-dashboard').classList.add('active');
+                renderDashboard();
+            }
+        }
+
+        // Handle Active Databases count select
+        function handleDbCountChange() {
+            store.activeCount = parseInt(document.getElementById('db-count-select').value);
+            renderInputForm();
+        }
+
+        // Handle Slot position change
+        function handlePosChange(modId, newSlot) {
+            newSlot = parseInt(newSlot);
+            const oldSlot = store.positions[modId - 1];
+            const otherModIdx = store.positions.findIndex(s => s === newSlot);
+            if (otherModIdx !== -1) {
+                store.positions[otherModIdx] = oldSlot;
+            }
+            store.positions[modId - 1] = newSlot;
+            renderInputForm();
+        }
+
+        // RENDER INPUT FORM (TAB 1)
+        function renderInputForm() {
+            const container = document.getElementById('form-cards-wrapper');
+            container.innerHTML = '';
+
+            modulesMeta.forEach(m => {
+                const modSlot = store.positions[m.id - 1];
+                const isDisabled = modSlot > store.activeCount;
+
+                let slotOptionsHtml = '';
+                for (let s = 1; s <= 10; s++) {
+                    slotOptionsHtml += `<option value="${s}" ${modSlot === s ? 'selected' : ''}>ตำแหน่งที่ ${s}</option>`;
+                }
+
+                const cardHtml = `
+                    <div class="form-card ${isDisabled ? 'style="opacity:0.4;"' : ''}">
+                        <div>
+                            <div class="card-hdr">
+                                <span class="card-num" style="background:${m.color};">${m.num}</span>
+                                <div class="hdr-title-group">
+                                    <div class="hdr-title">${m.title}</div>
+                                    <div class="hdr-subtitle">${m.sub}</div>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>ตำแหน่งวาง Grid:</label>
+                                <select class="form-control" style="font-weight:700; background:#f0f9ff;" onchange="handlePosChange(${m.id}, this.value)">
+                                    ${slotOptionsHtml}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:10px;">
+                            <button class="btn-open-popup" style="width:100%;" onclick="openModal(${m.id})">
+                                <i class="fa-solid fa-pen-to-square"></i> กรอกข้อมูลเพิ่มเติม
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        // OPEN POPUP MODAL
+        function openModal(modId) {
+            currentEditingModId = modId;
+            const meta = modulesMeta.find(m => m.id === modId);
+            
+            document.getElementById('modal-num-badge').style.background = meta.color;
+            document.getElementById('modal-num-badge').innerText = meta.num;
+            document.getElementById('modal-title-main').innerText = meta.title + " (" + meta.sub + ")";
+
+            const modalBody = document.getElementById('modal-body-content');
+            modalBody.innerHTML = generateModalFields(modId);
+
+            document.getElementById('input-modal').classList.add('active');
+        }
+
+        // CLOSE POPUP MODAL
+        function closeModal() {
+            document.getElementById('input-modal').classList.remove('active');
+            currentEditingModId = null;
+        }
+
+        // GENERATE MODAL FORM INPUTS BY MODULE ID
+        function generateModalFields(id) {
+            if (id === 1) {
+                return `
+                    <div class="form-group"><label>พนักงานปัจจุบัน (คน):</label><input type="number" id="inp-m1-curr" class="form-control" value="${store.m1.current}"></div>
+                    <div class="form-group"><label>พนักงานใหม่ YTD (คน):</label><input type="number" id="inp-m1-new" class="form-control" value="${store.m1.newHire}"></div>
+                    <div class="form-group"><label>พนักงานลาออก YTD (คน):</label><input type="number" id="inp-m1-out" class="form-control" value="${store.m1.turnover}"></div>
+                    <div class="form-group"><label>พนักงานสัญญาจ้าง (คน):</label><input type="number" id="inp-m1-contract" class="form-control" value="${store.m1.contract}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">สัดส่วนพนักงานแยกตามแผนก (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>Production:</label><input type="number" id="inp-m1-dp-prod" class="form-control" value="${store.m1.dept.prod}"></div>
+                        <div class="form-group"><label>Sales:</label><input type="number" id="inp-m1-dp-sales" class="form-control" value="${store.m1.dept.sales}"></div>
+                        <div class="form-group"><label>IT:</label><input type="number" id="inp-m1-dp-it" class="form-control" value="${store.m1.dept.it}"></div>
+                        <div class="form-group"><label>HR:</label><input type="number" id="inp-m1-dp-hr" class="form-control" value="${store.m1.dept.hr}"></div>
+                        <div class="form-group"><label>Finance:</label><input type="number" id="inp-m1-dp-fin" class="form-control" value="${store.m1.dept.fin}"></div>
+                        <div class="form-group"><label>อื่นๆ:</label><input type="number" id="inp-m1-dp-other" class="form-control" value="${store.m1.dept.other}"></div>
+                    </div>
+                `;
+            } else if (id === 2) {
+                return `
+                    <div class="form-group"><label>อัตราลาออกรายเดือน Jan-Jun (% คั่นด้วยเครื่องหมายจุลภาค ,):</label>
+                    <input type="text" id="inp-m2-monthly" class="form-control" value="${store.m2.monthly.join(',')}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">ลาออกแยกตามแผนก (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>Production:</label><input type="number" step="0.1" id="inp-m2-dp-prod" class="form-control" value="${store.m2.dept.prod}"></div>
+                        <div class="form-group"><label>Sales:</label><input type="number" step="0.1" id="inp-m2-dp-sales" class="form-control" value="${store.m2.dept.sales}"></div>
+                        <div class="form-group"><label>IT:</label><input type="number" step="0.1" id="inp-m2-dp-it" class="form-control" value="${store.m2.dept.it}"></div>
+                        <div class="form-group"><label>HR:</label><input type="number" step="0.1" id="inp-m2-dp-hr" class="form-control" value="${store.m2.dept.hr}"></div>
+                        <div class="form-group"><label>Finance:</label><input type="number" step="0.1" id="inp-m2-dp-fin" class="form-control" value="${store.m2.dept.fin}"></div>
+                    </div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">ลาออกแยกตามอายุงาน (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>< 1 ปี:</label><input type="number" id="inp-m2-tn-lt1" class="form-control" value="${store.m2.tenure.lt1}"></div>
+                        <div class="form-group"><label>1 - 3 ปี:</label><input type="number" id="inp-m2-tn-1-3" class="form-control" value="${store.m2.tenure.t1_3}"></div>
+                        <div class="form-group"><label>3 - 5 ปี:</label><input type="number" id="inp-m2-tn-3-5" class="form-control" value="${store.m2.tenure.t3_5}"></div>
+                        <div class="form-group"><label>> 5 ปี:</label><input type="number" id="inp-m2-tn-gt5" class="form-control" value="${store.m2.tenure.gt5}"></div>
+                    </div>
+                `;
+            } else if (id === 3) {
+                return `
+                    <div class="form-group"><label>ตำแหน่งที่เปิดรับ (ตำแหน่ง):</label><input type="number" id="inp-m3-openings" class="form-control" value="${store.m3.openings}"></div>
+                    <div class="form-group"><label>ผู้สมัครทั้งหมด (คน):</label><input type="number" id="inp-m3-applicants" class="form-control" value="${store.m3.applicants}"></div>
+                    <div class="form-group"><label>สัมภาษณ์ (คน):</label><input type="number" id="inp-m3-interviews" class="form-control" value="${store.m3.interviews}"></div>
+                    <div class="form-group"><label>ได้รับข้อเสนอ (คน):</label><input type="number" id="inp-m3-offers" class="form-control" value="${store.m3.offers}"></div>
+                    <div class="form-group"><label>เริ่มงานจริง (คน):</label><input type="number" id="inp-m3-hired" class="form-control" value="${store.m3.hired}"></div>
+                    <div class="form-group"><label>Time to Hire เฉลี่ย (วัน):</label><input type="number" id="inp-m3-time" class="form-control" value="${store.m3.timeToHire}"></div>
+                    <div class="form-group"><label>Cost per Hire เฉลี่ย (บาท):</label><input type="number" id="inp-m3-cost" class="form-control" value="${store.m3.costPerHire}"></div>
+                    <div class="form-group"><label>ตำแหน่งที่เปิดรับยากที่สุด (คั่นด้วย ,):</label><input type="text" id="inp-m3-hard" class="form-control" value="${store.m3.hardRoles}"></div>
+                `;
+            } else if (id === 4) {
+                return `
+                    <div class="form-group"><label>อัตราการเข้าทำงาน (%):</label><input type="number" step="0.1" id="inp-m4-att" class="form-control" value="${store.m4.attendance}"></div>
+                    <div class="form-group"><label>อัตราการขาดงาน (%):</label><input type="number" step="0.1" id="inp-m4-abs" class="form-control" value="${store.m4.absence}"></div>
+                    <div class="form-group"><label>อัตราการสาย (%):</label><input type="number" step="0.1" id="inp-m4-late" class="form-control" value="${store.m4.late}"></div>
+                    <div class="form-group"><label>ชั่วโมง OT เดือนนี้ (ชม.):</label><input type="number" id="inp-m4-ot" class="form-control" value="${store.m4.otHours}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">สัดส่วนการลาแยกประเภท (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>ลาป่วย:</label><input type="number" id="inp-m4-lv-sick" class="form-control" value="${store.m4.leave.sick}"></div>
+                        <div class="form-group"><label>ลากิจ:</label><input type="number" id="inp-m4-lv-personal" class="form-control" value="${store.m4.leave.personal}"></div>
+                        <div class="form-group"><label>ลาพักร้อน:</label><input type="number" id="inp-m4-lv-vacation" class="form-control" value="${store.m4.leave.vacation}"></div>
+                        <div class="form-group"><label>ลาคลอด:</label><input type="number" id="inp-m4-lv-maternity" class="form-control" value="${store.m4.leave.maternity}"></div>
+                        <div class="form-group"><label>อื่นๆ:</label><input type="number" id="inp-m4-lv-other" class="form-control" value="${store.m4.leave.other}"></div>
+                    </div>
+                `;
+            } else if (id === 5) {
+                return `
+                    <div class="form-group"><label>อายุงานเฉลี่ย (ปี):</label><input type="number" step="0.1" id="inp-m5-tenure" class="form-control" value="${store.m5.avgTenure}"></div>
+                    <div class="form-group"><label>พนักงานประจำ (%):</label><input type="number" id="inp-m5-perm" class="form-control" value="${store.m5.permanentPct}"></div>
+                    <div class="form-group"><label>สัดส่วนชาย (%):</label><input type="number" id="inp-m5-male" class="form-control" value="${store.m5.malePct}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">สัดส่วนตามช่วงอายุ (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>< 25 ปี:</label><input type="number" id="inp-m5-a25" class="form-control" value="${store.m5.age.lt25}"></div>
+                        <div class="form-group"><label>25 - 34 ปี:</label><input type="number" id="inp-m5-a34" class="form-control" value="${store.m5.age.a25_34}"></div>
+                        <div class="form-group"><label>35 - 44 ปี:</label><input type="number" id="inp-m5-a44" class="form-control" value="${store.m5.age.a35_44}"></div>
+                        <div class="form-group"><label>45 - 54 ปี:</label><input type="number" id="inp-m5-a54" class="form-control" value="${store.m5.age.a45_54}"></div>
+                        <div class="form-group"><label>> 54 ปี:</label><input type="number" id="inp-m5-gt54" class="form-control" value="${store.m5.age.gt54}"></div>
+                    </div>
+                `;
+            } else if (id === 6) {
+                return `
+                    <div class="form-group"><label>ต้นทุนรวมปีนี้ (ล้านบาท):</label><input type="number" step="0.1" id="inp-m6-total" class="form-control" value="${store.m6.totalCost}"></div>
+                    <div class="form-group"><label>เงินเดือน (ล้านบาท):</label><input type="number" step="0.1" id="inp-m6-sal" class="form-control" value="${store.m6.salary}"></div>
+                    <div class="form-group"><label>OT (ล้านบาท):</label><input type="number" step="0.1" id="inp-m6-ot" class="form-control" value="${store.m6.ot}"></div>
+                    <div class="form-group"><label>โบนัส (ล้านบาท):</label><input type="number" step="0.1" id="inp-m6-bonus" class="form-control" value="${store.m6.bonus}"></div>
+                    <div class="form-group"><label>สวัสดิการ (ล้านบาท):</label><input type="number" step="0.1" id="inp-m6-wel" class="form-control" value="${store.m6.welfare}"></div>
+                    <div class="form-group"><label>ต้นทุนต่อหัว (บาท/คน):</label><input type="number" id="inp-m6-head" class="form-control" value="${store.m6.costPerHead}"></div>
+                `;
+            } else if (id === 7) {
+                return `
+                    <div class="form-group"><label>คะแนนประเมินเฉลี่ย (เต็ม 5):</label><input type="number" step="0.01" id="inp-m7-avg" class="form-control" value="${store.m7.avgScore}"></div>
+                    <div class="form-group"><label>Top Performers (คน):</label><input type="number" id="inp-m7-top" class="form-control" value="${store.m7.topPerformers}"></div>
+                    <div class="form-group"><label>ต้องพัฒนา (คน):</label><input type="number" id="inp-m7-dev" class="form-control" value="${store.m7.needDev}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">สัดส่วนผลการประเมิน (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>ดีเยี่ยม:</label><input type="number" id="inp-m7-g-ex" class="form-control" value="${store.m7.grades.excel}"></div>
+                        <div class="form-group"><label>ดีมาก:</label><input type="number" id="inp-m7-g-vg" class="form-control" value="${store.m7.grades.vgood}"></div>
+                        <div class="form-group"><label>ดี:</label><input type="number" id="inp-m7-g-gd" class="form-control" value="${store.m7.grades.good}"></div>
+                        <div class="form-group"><label>พอใช้:</label><input type="number" id="inp-m7-g-fr" class="form-control" value="${store.m7.grades.fair}"></div>
+                        <div class="form-group"><label>ต้องปรับปรุง:</label><input type="number" id="inp-m7-g-im" class="form-control" value="${store.m7.grades.improve}"></div>
+                    </div>
+                `;
+            } else if (id === 8) {
+                return `
+                    <div class="form-group"><label>ชั่วโมงอบรมรวม (ชั่วโมง):</label><input type="number" id="inp-m8-hrs" class="form-control" value="${store.m8.totalHours}"></div>
+                    <div class="form-group"><label>งบประมาณอบรม (ล้านบาท):</label><input type="number" step="0.01" id="inp-m8-bg" class="form-control" value="${store.m8.budget}"></div>
+                    <div class="form-group"><label>อัตราการเข้าร่วม (%):</label><input type="number" id="inp-m8-join" class="form-control" value="${store.m8.joinRate}"></div>
+                    <div class="form-group"><label>เรียนจบครบถ้วน (%):</label><input type="number" id="inp-m8-pass" class="form-control" value="${store.m8.passRate}"></div>
+                    <div class="form-group"><label>Skill Gap ที่สำคัญ (คั่นด้วย ,):</label><input type="text" id="inp-m8-skills" class="form-control" value="${store.m8.skillGaps}"></div>
+                `;
+            } else if (id === 9) {
+                return `
+                    <div class="form-group"><label>Engagement Score (%):</label><input type="number" id="inp-m9-score" class="form-control" value="${store.m9.score}"></div>
+                    <div class="form-group"><label>ข้อความเปรียบเทียบ (เช่น +5% vs ปีก่อน):</label><input type="text" id="inp-m9-diff" class="form-control" value="${store.m9.scoreDiff}"></div>
+                    <div class="form-group"><label>eNPS Score:</label><input type="number" id="inp-m9-enps" class="form-control" value="${store.m9.enps}"></div>
+                    <div class="form-group"><label>สถานะ eNPS (เช่น ดีมาก):</label><input type="text" id="inp-m9-enps-lbl" class="form-control" value="${store.m9.enpsLabel}"></div>
+                    <hr style="border:0; border-top:1px solid #e2e8f0;">
+                    <div style="font-weight:700; font-size:0.8rem;">ประเด็นกังวลสูงสุด (%)</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <div class="form-group"><label>ค่าตอบแทน:</label><input type="number" id="inp-m9-c-pay" class="form-control" value="${store.m9.concerns.pay}"></div>
+                        <div class="form-group"><label>ความก้าวหน้า:</label><input type="number" id="inp-m9-c-car" class="form-control" value="${store.m9.concerns.career}"></div>
+                        <div class="form-group"><label>ภาระงาน:</label><input type="number" id="inp-m9-c-work" class="form-control" value="${store.m9.concerns.workload}"></div>
+                    </div>
+                `;
+            } else if (id === 10) {
+                return `
+                    <div class="form-group"><label>Total Headcount (คน):</label><input type="number" id="inp-m10-hc" class="form-control" value="${store.m10.headcount}"></div>
+                    <div class="form-group"><label>New Hires YTD (คน):</label><input type="number" id="inp-m10-nh" class="form-control" value="${store.m10.newHires}"></div>
+                    <div class="form-group"><label>Turnover Rate (%):</label><input type="number" step="0.1" id="inp-m10-tr" class="form-control" value="${store.m10.turnoverRate}"></div>
+                    <div class="form-group"><label>Absence Rate (%):</label><input type="number" step="0.1" id="inp-m10-ab" class="form-control" value="${store.m10.absenceRate}"></div>
+                    <div class="form-group"><label>Time to Hire (วัน):</label><input type="number" id="inp-m10-tth" class="form-control" value="${store.m10.timeToHire}"></div>
+                    <div class="form-group"><label>Cost per Hire (บาท):</label><input type="number" id="inp-m10-cph" class="form-control" value="${store.m10.costPerHire}"></div>
+                    <div class="form-group"><label>Training Hours (ชม.):</label><input type="number" id="inp-m10-th" class="form-control" value="${store.m10.trainingHours}"></div>
+                    <div class="form-group"><label>Engagement Score (%):</label><input type="number" id="inp-m10-es" class="form-control" value="${store.m10.engagementScore}"></div>
+                `;
+            }
+            return '';
+        }
+
+        // SAVE MODAL DATA TO STORE & CLOSE
+        function saveModalData() {
+            const id = currentEditingModId;
+            if (!id) return;
+
+            if (id === 1) {
+                store.m1.current = parseFloat(document.getElementById('inp-m1-curr').value) || 0;
+                store.m1.newHire = parseFloat(document.getElementById('inp-m1-new').value) || 0;
+                store.m1.turnover = parseFloat(document.getElementById('inp-m1-out').value) || 0;
+                store.m1.contract = parseFloat(document.getElementById('inp-m1-contract').value) || 0;
+                store.m1.dept.prod = parseFloat(document.getElementById('inp-m1-dp-prod').value) || 0;
+                store.m1.dept.sales = parseFloat(document.getElementById('inp-m1-dp-sales').value) || 0;
+                store.m1.dept.it = parseFloat(document.getElementById('inp-m1-dp-it').value) || 0;
+                store.m1.dept.hr = parseFloat(document.getElementById('inp-m1-dp-hr').value) || 0;
+                store.m1.dept.fin = parseFloat(document.getElementById('inp-m1-dp-fin').value) || 0;
+                store.m1.dept.other = parseFloat(document.getElementById('inp-m1-dp-other').value) || 0;
+            } else if (id === 2) {
+                const arr = document.getElementById('inp-m2-monthly').value.split(',').map(n => parseFloat(n.trim()) || 0);
+                if (arr.length) store.m2.monthly = arr;
+                store.m2.dept.prod = parseFloat(document.getElementById('inp-m2-dp-prod').value) || 0;
+                store.m2.dept.sales = parseFloat(document.getElementById('inp-m2-dp-sales').value) || 0;
+                store.m2.dept.it = parseFloat(document.getElementById('inp-m2-dp-it').value) || 0;
+                store.m2.dept.hr = parseFloat(document.getElementById('inp-m2-dp-hr').value) || 0;
+                store.m2.dept.fin = parseFloat(document.getElementById('inp-m2-dp-fin').value) || 0;
+                store.m2.tenure.lt1 = parseFloat(document.getElementById('inp-m2-tn-lt1').value) || 0;
+                store.m2.tenure.t1_3 = parseFloat(document.getElementById('inp-m2-tn-1-3').value) || 0;
+                store.m2.tenure.t3_5 = parseFloat(document.getElementById('inp-m2-tn-3-5').value) || 0;
+                store.m2.tenure.gt5 = parseFloat(document.getElementById('inp-m2-tn-gt5').value) || 0;
+            } else if (id === 3) {
+                store.m3.openings = parseInt(document.getElementById('inp-m3-openings').value) || 0;
+                store.m3.applicants = parseInt(document.getElementById('inp-m3-applicants').value) || 0;
+                store.m3.interviews = parseInt(document.getElementById('inp-m3-interviews').value) || 0;
+                store.m3.offers = parseInt(document.getElementById('inp-m3-offers').value) || 0;
+                store.m3.hired = parseInt(document.getElementById('inp-m3-hired').value) || 0;
+                store.m3.timeToHire = parseInt(document.getElementById('inp-m3-time').value) || 0;
+                store.m3.costPerHire = parseInt(document.getElementById('inp-m3-cost').value) || 0;
+                store.m3.hardRoles = document.getElementById('inp-m3-hard').value;
+            } else if (id === 4) {
+                store.m4.attendance = parseFloat(document.getElementById('inp-m4-att').value) || 0;
+                store.m4.absence = parseFloat(document.getElementById('inp-m4-abs').value) || 0;
+                store.m4.late = parseFloat(document.getElementById('inp-m4-late').value) || 0;
+                store.m4.otHours = parseInt(document.getElementById('inp-m4-ot').value) || 0;
+                store.m4.leave.sick = parseFloat(document.getElementById('inp-m4-lv-sick').value) || 0;
+                store.m4.leave.personal = parseFloat(document.getElementById('inp-m4-lv-personal').value) || 0;
+                store.m4.leave.vacation = parseFloat(document.getElementById('inp-m4-lv-vacation').value) || 0;
+                store.m4.leave.maternity = parseFloat(document.getElementById('inp-m4-lv-maternity').value) || 0;
+                store.m4.leave.other = parseFloat(document.getElementById('inp-m4-lv-other').value) || 0;
+            } else if (id === 5) {
+                store.m5.avgTenure = parseFloat(document.getElementById('inp-m5-tenure').value) || 0;
+                store.m5.permanentPct = parseFloat(document.getElementById('inp-m5-perm').value) || 0;
+                store.m5.contractPct = 100 - store.m5.permanentPct;
+                store.m5.malePct = parseFloat(document.getElementById('inp-m5-male').value) || 0;
+                store.m5.femalePct = 100 - store.m5.malePct;
+                store.m5.age.lt25 = parseFloat(document.getElementById('inp-m5-a25').value) || 0;
+                store.m5.age.a25_34 = parseFloat(document.getElementById('inp-m5-a34').value) || 0;
+                store.m5.age.a35_44 = parseFloat(document.getElementById('inp-m5-a44').value) || 0;
+                store.m5.age.a45_54 = parseFloat(document.getElementById('inp-m5-a54').value) || 0;
+                store.m5.age.gt54 = parseFloat(document.getElementById('inp-m5-gt54').value) || 0;
+            } else if (id === 6) {
+                store.m6.totalCost = parseFloat(document.getElementById('inp-m6-total').value) || 0;
+                store.m6.salary = parseFloat(document.getElementById('inp-m6-sal').value) || 0;
+                store.m6.ot = parseFloat(document.getElementById('inp-m6-ot').value) || 0;
+                store.m6.bonus = parseFloat(document.getElementById('inp-m6-bonus').value) || 0;
+                store.m6.welfare = parseFloat(document.getElementById('inp-m6-wel').value) || 0;
+                store.m6.costPerHead = parseInt(document.getElementById('inp-m6-head').value) || 0;
+                if (store.m6.totalCost > 0) {
+                    store.m6.salaryPct = ((store.m6.salary / store.m6.totalCost) * 100).toFixed(1);
+                    store.m6.otPct = ((store.m6.ot / store.m6.totalCost) * 100).toFixed(1);
+                    store.m6.bonusPct = ((store.m6.bonus / store.m6.totalCost) * 100).toFixed(1);
+                }
+            } else if (id === 7) {
+                store.m7.avgScore = parseFloat(document.getElementById('inp-m7-avg').value) || 0;
+                store.m7.topPerformers = parseInt(document.getElementById('inp-m7-top').value) || 0;
+                store.m7.needDev = parseInt(document.getElementById('inp-m7-dev').value) || 0;
+                store.m7.grades.excel = parseFloat(document.getElementById('inp-m7-g-ex').value) || 0;
+                store.m7.grades.vgood = parseFloat(document.getElementById('inp-m7-g-vg').value) || 0;
+                store.m7.grades.good = parseFloat(document.getElementById('inp-m7-g-gd').value) || 0;
+                store.m7.grades.fair = parseFloat(document.getElementById('inp-m7-g-fr').value) || 0;
+                store.m7.grades.improve = parseFloat(document.getElementById('inp-m7-g-im').value) || 0;
+            } else if (id === 8) {
+                store.m8.totalHours = parseInt(document.getElementById('inp-m8-hrs').value) || 0;
+                store.m8.budget = parseFloat(document.getElementById('inp-m8-bg').value) || 0;
+                store.m8.joinRate = parseFloat(document.getElementById('inp-m8-join').value) || 0;
+                store.m8.passRate = parseFloat(document.getElementById('inp-m8-pass').value) || 0;
+                store.m8.skillGaps = document.getElementById('inp-m8-skills').value;
+            } else if (id === 9) {
+                store.m9.score = parseFloat(document.getElementById('inp-m9-score').value) || 0;
+                store.m9.scoreDiff = document.getElementById('inp-m9-diff').value;
+                store.m9.enps = parseInt(document.getElementById('inp-m9-enps').value) || 0;
+                store.m9.enpsLabel = document.getElementById('inp-m9-enps-lbl').value;
+                store.m9.concerns.pay = parseFloat(document.getElementById('inp-m9-c-pay').value) || 0;
+                store.m9.concerns.career = parseFloat(document.getElementById('inp-m9-c-car').value) || 0;
+                store.m9.concerns.workload = parseFloat(document.getElementById('inp-m9-c-work').value) || 0;
+            } else if (id === 10) {
+                store.m10.headcount = parseInt(document.getElementById('inp-m10-hc').value) || 0;
+                store.m10.newHires = parseInt(document.getElementById('inp-m10-nh').value) || 0;
+                store.m10.turnoverRate = parseFloat(document.getElementById('inp-m10-tr').value) || 0;
+                store.m10.absenceRate = parseFloat(document.getElementById('inp-m10-ab').value) || 0;
+                store.m10.timeToHire = parseInt(document.getElementById('inp-m10-tth').value) || 0;
+                store.m10.costPerHire = parseInt(document.getElementById('inp-m10-cph').value) || 0;
+                store.m10.trainingHours = parseInt(document.getElementById('inp-m10-th').value) || 0;
+                store.m10.engagementScore = parseFloat(document.getElementById('inp-m10-es').value) || 0;
+            }
+
+            closeModal();
+        }
+
+        // RENDER DASHBOARD (TAB 2)
+        function renderDashboard() {
+            const container = document.getElementById('dashboard-cards-wrapper');
+            container.innerHTML = '';
+
+            Object.keys(chartInstances).forEach(k => {
+                if (chartInstances[k]) chartInstances[k].destroy();
+            });
+            chartInstances = {};
+
+            for (let slot = 1; slot <= 10; slot++) {
+                const modId = store.positions.findIndex(s => s === slot) + 1;
+                const isDisabled = slot > store.activeCount;
+
+                if (isDisabled || modId === 0) {
+                    container.innerHTML += `<div class="dash-card disabled-card"></div>`;
+                    continue;
+                }
+
+                const meta = modulesMeta.find(m => m.id === modId);
+                const bodyHtml = getDashboardCardBody(modId, slot);
+
+                const cardHtml = `
+                    <div class="dash-card">
+                        <div class="card-hdr">
+                            <span class="card-num" style="background:${meta.color};">${meta.num}</span>
+                            <div class="hdr-title-group">
+                                <div class="hdr-title">${meta.title}</div>
+                                <div class="hdr-subtitle">${meta.sub}</div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            ${bodyHtml}
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            }
+
+            setTimeout(() => {
+                for (let slot = 1; slot <= store.activeCount; slot++) {
+                    const modId = store.positions.findIndex(s => s === slot) + 1;
+                    if (modId > 0) renderModuleCharts(modId, slot);
+                }
+            }, 50);
+        }
+
+        // DASHBOARD CARD CONTENT
+        function getDashboardCardBody(id, slot) {
+            if (id === 1) {
+                return `
+                    <div class="stat-list">
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-user-group" style="color:#059669;"></i> พนักงานปัจจุบัน</span><span class="stat-val">${store.m1.current.toLocaleString()} คน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-user-plus" style="color:#2563eb;"></i> พนักงานใหม่ (YTD)</span><span class="stat-val">${store.m1.newHire.toLocaleString()} คน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-circle-xmark" style="color:#dc2626;"></i> พนักงานลาออก (YTD)</span><span class="stat-val">${store.m1.turnover.toLocaleString()} คน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-file-contract" style="color:#d97706;"></i> พนักงานสัญญาจ้าง</span><span class="stat-val">${store.m1.contract.toLocaleString()} คน</span></div>
+                    </div>
+                    <div style="font-weight:700; font-size:0.65rem; color:#334155; margin-top:2px;">พนักงานแยกตามแผนก</div>
+                    <div class="chart-box"><canvas id="chart-slot-${slot}"></canvas></div>
+                `;
+            } else if (id === 2) {
+                return `
+                    <div style="font-size:0.62rem; font-weight:700; color:#1e3a8a;">อัตราการลาออกรายเดือน (%)</div>
+                    <div style="height:42px;" class="chart-box"><canvas id="chart-slot-${slot}-a"></canvas></div>
+                    <div style="font-size:0.62rem; font-weight:700; color:#1e3a8a;">แยกตามแผนก (YTD)</div>
+                    <div style="height:42px;" class="chart-box"><canvas id="chart-slot-${slot}-b"></canvas></div>
+                    <div class="stat-list" style="margin-top:2px;">
+                        <div style="font-size:0.62rem; font-weight:700; color:#1e3a8a; text-align:center;">แยกตามอายุงาน</div>
+                        <div style="display:flex; justify-content:space-around; font-size:0.62rem; text-align:center;">
+                            <div><b><1ปี</b><br><span style="color:#2563eb;">${store.m2.tenure.lt1}%</span></div>
+                            <div><b>1-3ปี</b><br><span style="color:#2563eb;">${store.m2.tenure.t1_3}%</span></div>
+                            <div><b>3-5ปี</b><br><span style="color:#2563eb;">${store.m2.tenure.t3_5}%</span></div>
+                            <div><b>>5ปี</b><br><span style="color:#2563eb;">${store.m2.tenure.gt5}%</span></div>
+                        </div>
+                    </div>
+                `;
+            } else if (id === 3) {
+                return `
+                    <div class="funnel-container">
+                        <div class="funnel-step" style="width:100%; background:#4c1d95;"><span>ตำแหน่งที่เปิดรับ</span><span>${store.m3.openings}</span></div>
+                        <div class="funnel-step" style="width:85%; background:#5b21b6;"><span>ผู้สมัครทั้งหมด</span><span>${store.m3.applicants}</span></div>
+                        <div class="funnel-step" style="width:70%; background:#6d28d9;"><span>สัมภาษณ์</span><span>${store.m3.interviews}</span></div>
+                        <div class="funnel-step" style="width:55%; background:#7c3aed;"><span>ได้รับข้อเสนอ</span><span>${store.m3.offers}</span></div>
+                        <div class="funnel-step" style="width:40%; background:#8b5cf6;"><span>เริ่มงานจริง</span><span>${store.m3.hired}</span></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                        <div style="text-align:center; background:#f5f3ff; padding:2px 4px; border-radius:4px; flex:1; margin-right:4px;">
+                            <div style="font-size:0.58rem; color:#5b21b6;">Time to Hire (เฉลี่ย)</div>
+                            <div style="font-weight:800; font-size:0.85rem; color:#4c1d95;">${store.m3.timeToHire} วัน</div>
+                        </div>
+                        <div style="text-align:center; background:#f5f3ff; padding:2px 4px; border-radius:4px; flex:1;">
+                            <div style="font-size:0.58rem; color:#5b21b6;">Cost per Hire (เฉลี่ย)</div>
+                            <div style="font-weight:800; font-size:0.85rem; color:#4c1d95;">${store.m3.costPerHire.toLocaleString()} บาท</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.62rem; color:#334155; margin-top:2px;">
+                        <b>ตำแหน่งเปิดรับยากสุด:</b>
+                        <ul style="padding-left:14px; margin-top:1px;">
+                            ${store.m3.hardRoles.split(',').map(r => `<li>${r.trim()}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else if (id === 4) {
+                return `
+                    <div class="stat-list">
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-circle-check" style="color:#10b981;"></i> อัตราการเข้าทำงาน</span><span class="stat-val">${store.m4.attendance}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> อัตราการขาดงาน</span><span class="stat-val">${store.m4.absence}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> อัตราการสาย</span><span class="stat-val">${store.m4.late}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-clock" style="color:#3b82f6;"></i> ชั่วโมง OT (เดือนนี้)</span><span class="stat-val">${store.m4.otHours.toLocaleString()} ชม.</span></div>
+                    </div>
+                    <div style="font-weight:700; font-size:0.62rem; color:#334155; margin-top:2px; text-align:center;">การลาแยกประเภท (ปีนี้)</div>
+                    <div class="chart-box"><canvas id="chart-slot-${slot}"></canvas></div>
+                `;
+            } else if (id === 5) {
+                return `
+                    <div style="font-size:0.62rem; font-weight:700; color:#0f766e;">ช่วงอายุพนักงาน</div>
+                    <div style="height:50px;" class="chart-box"><canvas id="chart-slot-${slot}-a"></canvas></div>
+                    <div class="stat-list" style="margin-top:2px;">
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-user-clock"></i> อายุงานเฉลี่ย</span><span class="stat-val">${store.m5.avgTenure} ปี</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-user-tie"></i> พนักงานประจำ / สัญญาจ้าง</span><span class="stat-val">${store.m5.permanentPct}% / ${store.m5.contractPct}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-venus-mars"></i> ชาย / หญิง</span><span class="stat-val">${store.m5.malePct}% / ${store.m5.femalePct}%</span></div>
+                    </div>
+                `;
+            } else if (id === 6) {
+                return `
+                    <div class="big-cost-banner">
+                        <i class="fa-solid fa-piggy-bank"></i>
+                        <div class="cost-text-group">
+                            <div class="lbl">ต้นทุนรวม (ปีนี้)</div>
+                            <div class="val">${store.m6.totalCost} <span style="font-size:0.7rem;">ล้านบาท</span></div>
+                        </div>
+                    </div>
+                    <div class="stat-list" style="font-size:0.62rem;">
+                        <div class="stat-item"><span>เงินเดือน</span><b>${store.m6.salary} ลบ. (${store.m6.salaryPct}%)</b></div>
+                        <div class="stat-item"><span>OT</span><b>${store.m6.ot} ลบ. (${store.m6.otPct}%)</b></div>
+                        <div class="stat-item"><span>โบนัส</span><b>${store.m6.bonus} ลบ. (${store.m6.bonusPct}%)</b></div>
+                    </div>
+                    <div style="background:#fef3c7; padding:2px 4px; border-radius:4px; font-size:0.62rem; text-align:center;">
+                        ต้นทุนต่อหัว (เฉลี่ย): <b>${store.m6.costPerHead.toLocaleString()} บาท/คน</b>
+                    </div>
+                `;
+            } else if (id === 7) {
+                return `
+                    <div class="rating-box">
+                        <i class="fa-solid fa-star"></i>
+                        <div>
+                            <div style="font-size:0.58rem; color:#166534;">คะแนนประเมินเฉลี่ย</div>
+                            <div class="rating-num">${store.m7.avgScore} <span style="font-size:0.7rem; color:#4b5563;">จาก 5</span></div>
+                        </div>
+                    </div>
+                    <div style="font-weight:700; font-size:0.62rem; color:#15803d; text-align:center;">ผลการประเมิน (ปีนี้)</div>
+                    <div class="chart-box"><canvas id="chart-slot-${slot}"></canvas></div>
+                    <div style="display:flex; justify-content:space-around; margin-top:2px; font-size:0.62rem;">
+                        <div><i class="fa-solid fa-trophy" style="color:#eab308;"></i> Top: <b>${store.m7.topPerformers} คน</b></div>
+                        <div><i class="fa-solid fa-bullseye" style="color:#dc2626;"></i> พัฒนา: <b>${store.m7.needDev} คน</b></div>
+                    </div>
+                `;
+            } else if (id === 8) {
+                return `
+                    <div class="training-banner">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                        <div>
+                            <div style="font-size:0.58rem; color:#0369a1;">ชั่วโมงอบรมรวม (ปีนี้)</div>
+                            <div style="font-size:1.05rem; font-weight:800; color:#0c4a6e;">${store.m8.totalHours.toLocaleString()} <span style="font-size:0.65rem;">ชม.</span></div>
+                        </div>
+                    </div>
+                    <div class="stat-list" style="margin-top:2px;">
+                        <div class="stat-item"><span><i class="fa-solid fa-sack-dollar" style="color:#0284c7;"></i> งบอบรม</span><b>${store.m8.budget} ลบ.</b></div>
+                        <div class="stat-item"><span><i class="fa-solid fa-users-check" style="color:#0284c7;"></i> เข้าร่วม</span><b>${store.m8.joinRate}%</b></div>
+                        <div class="stat-item"><span><i class="fa-solid fa-award" style="color:#0284c7;"></i> จบครบถ้วน</span><b>${store.m8.passRate}%</b></div>
+                    </div>
+                    <div style="font-size:0.62rem; color:#334155; margin-top:2px;">
+                        <b>Skill Gap สำคัญ:</b>
+                        <ul style="padding-left:14px;">
+                            ${store.m8.skillGaps.split(',').map(s => `<li>${s.trim()}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else if (id === 9) {
+                return `
+                    <div class="engage-hero">
+                        <i class="fa-solid fa-face-smile"></i>
+                        <div>
+                            <div style="font-size:0.58rem; color:#9f1239;">Engagement Score</div>
+                            <div style="font-size:1.1rem; font-weight:800; color:#881337;">${store.m9.score}% <span style="font-size:0.6rem; color:#059669;">(${store.m9.scoreDiff})</span></div>
+                        </div>
+                    </div>
+                    <div class="enps-box">
+                        <i class="fa-solid fa-users" style="font-size:1.1rem; color:#be123c;"></i>
+                        <div>
+                            <div style="font-size:0.58rem; color:#475569;">eNPS (แนะนำองค์กร)</div>
+                            <div style="font-weight:800; font-size:0.95rem; color:#be123c;">+${store.m9.enps} <span style="font-size:0.65rem; color:#059669;">(${store.m9.enpsLabel})</span></div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.62rem; font-weight:700; color:#881337; margin-top:2px;">ประเด็นกังวลสูงสุด</div>
+                    <div class="stat-list" style="font-size:0.6rem;">
+                        <div class="stat-item"><span>ค่าตอบแทน</span><b>${store.m9.concerns.pay}%</b></div>
+                        <div class="stat-item"><span>ความก้าวหน้า</span><b>${store.m9.concerns.career}%</b></div>
+                        <div class="stat-item"><span>ภาระงาน</span><b>${store.m9.concerns.workload}%</b></div>
+                    </div>
+                `;
+            } else if (id === 10) {
+                return `
+                    <div class="stat-list">
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-users" style="color:#2563eb;"></i> Total Headcount</span><span class="stat-val">${store.m10.headcount.toLocaleString()} คน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-user-plus" style="color:#059669;"></i> New Hires (YTD)</span><span class="stat-val">${store.m10.newHires.toLocaleString()} คน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-arrows-rotate" style="color:#dc2626;"></i> Turnover Rate</span><span class="stat-val">${store.m10.turnoverRate}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-calendar-xmark" style="color:#d97706;"></i> Absence Rate</span><span class="stat-val">${store.m10.absenceRate}%</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-stopwatch" style="color:#7c3aed;"></i> Time to Hire</span><span class="stat-val">${store.m10.timeToHire} วัน</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-sack-dollar" style="color:#16a34a;"></i> Cost per Hire</span><span class="stat-val">${store.m10.costPerHire.toLocaleString()} บาท</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-graduation-cap" style="color:#0284c7;"></i> Training Hours</span><span class="stat-val">${store.m10.trainingHours.toLocaleString()} ชม.</span></div>
+                        <div class="stat-item"><span class="stat-item-left"><i class="fa-solid fa-face-smile" style="color:#e11d48;"></i> Engagement Score</span><span class="stat-val">${store.m10.engagementScore}%</span></div>
+                    </div>
+                `;
+            }
+            return '';
+        }
+
+        // RENDER CHARTS
+        function renderModuleCharts(modId, slot) {
+            if (modId === 1) {
+                const ctx = document.getElementById(`chart-slot-${slot}`);
+                if (!ctx) return;
+                chartInstances[`slot-${slot}`] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Production', 'Sales', 'IT', 'HR', 'Finance', 'อื่นๆ'],
+                        datasets: [{
+                            data: [store.m1.dept.prod, store.m1.dept.sales, store.m1.dept.it, store.m1.dept.hr, store.m1.dept.fin, store.m1.dept.other],
+                            backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } else if (modId === 2) {
+                const ctxA = document.getElementById(`chart-slot-${slot}-a`);
+                if (ctxA) {
+                    chartInstances[`slot-${slot}-a`] = new Chart(ctxA, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                data: store.m2.monthly,
+                                borderColor: '#1d4ed8',
+                                backgroundColor: 'rgba(29,78,216,0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { font: { size: 7 } } } } }
+                    });
+                }
+                const ctxB = document.getElementById(`chart-slot-${slot}-b`);
+                if (ctxB) {
+                    chartInstances[`slot-${slot}-b`] = new Chart(ctxB, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Prod', 'Sales', 'IT', 'HR', 'Fin'],
+                            datasets: [{ data: [store.m2.dept.prod, store.m2.dept.sales, store.m2.dept.it, store.m2.dept.hr, store.m2.dept.fin], backgroundColor: '#3b82f6' }]
+                        },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { font: { size: 7 } } } } }
+                    });
+                }
+            } else if (modId === 4) {
+                const ctx = document.getElementById(`chart-slot-${slot}`);
+                if (!ctx) return;
+                chartInstances[`slot-${slot}`] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['ป่วย', 'กิจ', 'พักร้อน', 'คลอด', 'อื่นๆ'],
+                        datasets: [{ data: [store.m4.leave.sick, store.m4.leave.personal, store.m4.leave.vacation, store.m4.leave.maternity, store.m4.leave.other], backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#64748b'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            } else if (modId === 5) {
+                const ctxA = document.getElementById(`chart-slot-${slot}-a`);
+                if (ctxA) {
+                    chartInstances[`slot-${slot}-a`] = new Chart(ctxA, {
+                        type: 'bar',
+                        data: {
+                            labels: ['<25', '25-34', '35-44', '45-54', '>54'],
+                            datasets: [{ data: [store.m5.age.lt25, store.m5.age.a25_34, store.m5.age.a35_44, store.m5.age.a45_54, store.m5.age.gt54], backgroundColor: '#0f766e' }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { font: { size: 7 } } } } }
+                    });
+                }
+            } else if (modId === 7) {
+                const ctx = document.getElementById(`chart-slot-${slot}`);
+                if (!ctx) return;
+                chartInstances[`slot-${slot}`] = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['ดีเยี่ยม', 'ดีมาก', 'ดี', 'พอใช้', 'ปรับปรุง'],
+                        datasets: [{ data: [store.m7.grades.excel, store.m7.grades.vgood, store.m7.grades.good, store.m7.grades.fair, store.m7.grades.improve], backgroundColor: ['#15803d', '#22c55e', '#86efac', '#fde047', '#ef4444'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+        }
+
+        // EXPORT DASHBOARD AS IMAGE
+        function exportDashboardImage() {
+            switchTab('dashboard');
+            setTimeout(() => {
+                const node = document.getElementById('tab-dashboard');
+                html2canvas(node, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#f1f5f9'
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'SIAM-HRBP_Dashboard_Report.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                }).catch(err => {
+                    alert("Export Error: " + err);
+                });
+            }, 300);
+        }
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderInputForm();
+        });
+    </script>
+</body>
+</html>

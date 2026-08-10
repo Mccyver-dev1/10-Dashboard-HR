@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Dashboard Generator</title>
+    <!-- Chart.js สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2canvas สำหรับส่งออกเป็นรูปภาพ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --primary-color: #2563eb;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* ป้องกันการเกิด Scrollbar */
+        }
+
+        /* Navigation Header */
+        header {
+            height: 6vh;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            padding: 6px 16px;
+            border: none;
+            background: #e5e7eb;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .export-btn {
+            background: #10b981;
+            color: white;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .export-btn:hover { background: #059669; }
+
+        /* Main Content Container */
+        main {
+            height: 90vh;
+            padding: 10px;
+            position: relative;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Grid Layout สำหรับทั้ง 2 หน้า (5 คอลัมน์ 2 แถว = 10 ช่องพอดี) */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            height: 100%;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .card-number {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            font-size: 0.75rem;
+            position: relative;
+        }
+
+        /* Form Controls */
+        .config-bar {
+            background: white;
+            padding: 8px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-bottom: 4px;
+        }
+
+        .form-group label {
+            font-size: 0.7rem;
+            color: #6b7280;
+        }
+
+        .form-control {
+            padding: 3px 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            width: 100%;
+        }
+
+        .slot-select {
+            margin-bottom: 6px;
+            background: #eff6ff;
+            border-color: #3b82f6;
+            font-weight: 600;
+        }
+
+        /* Dashboard Metrics Style */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
+            border-bottom: 1px dashed #f3f4f6;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .chart-container {
+            position: relative;
+            flex: 1;
+            max-height: 100%;
+            width: 100%;
+        }
+
+        /* Disabled Card Style */
+        .card.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            background: #e5e7eb;
+        }
+
+        /* Footer */
+        footer {
+            height: 4vh;
+            background: #1f2937;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header & Tabs -->
+    <header>
+        <div style="font-weight: bold; color: var(--primary-color);">HR Dashboard Generator</div>
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('tab-input')">1. กรอกข้อมูล & ตั้งค่า</button>
+            <button class="tab-btn" onclick="switchTab('tab-dashboard')">2. แสดง Dashboard</button>
+        </div>
+        <button class="export-btn" onclick="exportDashboard()">
+            📷 Export รูปภาพ
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- TAB 1: INPUT DATA & CONFIGURATION -->
+        <div id="tab-input" class="tab-content active">
+            <div class="config-bar">
+                <label for="db-count"><b>จำนวนฐานข้อมูลที่ต้องการแสดง (ขั้นต่ำ 6):</b></label>
+                <select id="db-count" class="form-control" style="width: auto;" onchange="updateVisibleCards()">
+                    <option value="6">6 หัวข้อ</option>
+                    <option value="7">7 หัวข้อ</option>
+                    <option value="8">8 หัวข้อ</option>
+                    <option value="9">9 หัวข้อ</option>
+                    <option value="10" selected>10 หัวข้อ (ทั้งหมด)</option>
+                </select>
+                <span style="color: #6b7280; font-size: 0.75rem;">* เลือกตำแหน่งการจัดวางบอร์ดได้อิสระจาก Dropdown ของแต่ละหัวข้อ</span>
+            </div>
+
+            <div class="dashboard-grid" id="input-grid">
+                <!-- Input Module 1-10 Dynamic Render -->
+            </div>
+        </div>
+
+        <!-- TAB 2: DASHBOARD DISPLAY -->
+        <div id="tab-dashboard" class="tab-content">
+            <div class="dashboard-grid" id="dashboard-grid">
+                <!-- Dashboard Render Target -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        © 2025 SIAM-HRBP Soft
+    </footer>
+
+    <script>
+        // ข้อมูลหลัก 10 หัวข้อมาตรฐาน
+        const defaultTopics = [
+            { id: 1, name: "Headcount Summary", sub: "สรุปจำนวนพนักงาน", val1: 1250, val2: 120, val3: 95 },
+            { id: 2, name: "Turnover Rate", sub: "อัตราการลาออก (%)", val1: 7.6, val2: 5.2, val3: 8.1 },
+            { id: 3, name: "New Hire & Recruitment", sub: "การสรรหาและคัดเลือก", val1: 80, val2: 620, val3: 95 },
+            { id: 4, name: "Attendance & Leave", sub: "การเข้าออกงานและการลา (%)", val1: 96.2, val2: 2.1, val3: 3.7 },
+            { id: 5, name: "Employee Demographics", sub: "โครงสร้างพนักงาน", val1: 4.6, val2: 83, val3: 58 },
+            { id: 6, name: "Payroll & Workforce Cost", sub: "ต้นทุนบุคลากร (ลบ.)", val1: 125.6, val2: 85.2, val3: 15.3 },
+            { id: 7, name: "Performance Management", sub: "การบริหารผลการปฏิบัติงาน", val1: 4.18, val2: 12, val3: 38 },
+            { id: 8, name: "Training & Development", sub: "การพัฒนาและฝึกอบรม", val1: 4850, val2: 2.45, val3: 88 },
+            { id: 9, name: "Employee Engagement", sub: "ความผูกพันของพนักงาน", val1: 82, val2: 42, val3: 32 },
+            { id: 10, name: "HR KPI Summary", sub: "สรุป KPI สำคัญ", val1: 1250, val2: 7.6, val3: 42 }
+        ];
+
+        // เก็บสถานะตำแหน่งของแต่ละหัวข้อ (Default Slot 1 ถึง 10)
+        let topicPositions = defaultTopics.map((t, index) => ({ topicId: t.id, slot: index + 1 }));
+        let activeCharts = {};
+
+        // โหลด UI แท็บกรอกข้อมูล
+        function renderInputTab() {
+            const grid = document.getElementById('input-grid');
+            grid.innerHTML = '';
+
+            defaultTopics.forEach((t) => {
+                const currentPos = topicPositions.find(p => p.topicId === t.id).slot;
+                
+                let optionsHtml = '';
+                for (let i = 1; i <= 10; i++) {
+                    optionsHtml += `<option value="${i}" ${currentPos === i ? 'selected' : ''}>ตำแหน่งที่ ${i}</option>`;
+                }
+
+                const cardHtml = `
+                    <div class="card" id="input-card-${t.id}">
+                        <div class="card-header">
+                            <span class="card-number">${t.id}</span>
+                            <span class="card-title">${t.name}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>ตำแหน่งวาง บน Grid:</label>
+                                <select class="form-control slot-select" onchange="changePosition(${t.id}, this.value)">
+                                    ${optionsHtml}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>ค่าหลัก 1 (Key Metric 1):</label>
+                                <input type="number" class="form-control" id="input-${t.id}-v1" value="${t.val1}" onchange="updateData(${t.id})">
+                            </div>
+                            <div class="form-group">
+                                <label>ค่ารอง 2 (Key Metric 2):</label>
+                                <input type="number" class="form-control" id="input-${t.id}-v2" value="${t.val2}" onchange="updateData(${t.id})">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHtml;
+            });
+            updateVisibleCards();
+        }
+
+        // อัปเดตตำแหน่งการจัดวาง Card
+        function changePosition(topicId, newSlot) {
+            newSlot = parseInt(newSlot);
+            const existing = topicPositions.find(p => p.slot === newSlot);
+            const current = topicPositions.find(p => p.topicId === topicId);
+
+            if (existing) {
+                // สลับตำแหน่งกัน
+                existing.slot = current.slot;
+            }
+            current.slot = newSlot;
+            renderInputTab();
+        }
+
+        // จัดการเปิด/ปิด จำนวนการ์ดตาม Dropdown
+        function updateVisibleCards() {
+            const count = parseInt(document.getElementById('db-count').value);
+            defaultTopics.forEach(t => {
+                const pos = topicPositions.find(p => p.topicId === t.id).slot;
+                const card = document.getElementById(`input-card-${t.id}`);
+                if (pos > count) {
+                    card.classList.add('disabled');
+                } else {
+                    card.classList.remove('disabled');
+                }
+            });
+        }
+
+        // อัปเดตค่าเมื่อผู้ใช้พิมพ์แก้ไข
+        function updateData(topicId) {
+            const topic = defaultTopics.find(t => t.id === topicId);
+            topic.val1 = parseFloat(document.getElementById(`input-${topicId}-v1`).value) || 0;
+            topic.val2 = parseFloat(document.getElementById(`input-${topicId}-v2`).value) || 0;
+        }
+
+        // สลับแท็บ
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabId === 'tab-dashboard') {
+                renderDashboard();
+            }
+        }
+
+        // เรนเดอร์หน้า Dashboard
+        function renderDashboard() {
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = '';
+            
+            // ล้าง Chart เก่า
+            Object.keys(activeCharts).forEach(key => activeCharts[key].destroy());
+            activeCharts = {};
+
+            const maxVisibleSlots = parseInt(document.getElementById('db-count').value);
+
+            // สร้าง Array 10 Slot
+            for (let slot = 1; slot <= 10; slot++) {
+                const posObj = topicPositions.find(p => p.slot === slot);
+                
+                if (slot > maxVisibleSlots || !posObj) {
+                    // ช่องว่างเมื่อเลือก < 10
+                    grid.innerHTML += `<div class="card" style="background:#f9fafb; border: 1px dashed #ccc;"></div>`;
+                    continue;
+                }
+
+                const t = defaultTopics.find(item => item.id === posObj.topicId);
+
+                const cardHtml = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-number">${t.id}</span>
+                            <div>
+                                <div class="card-title">${t.name}</div>
+                                <div style="font-size:0.65rem; color:#6b7280;">${t.sub}</div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="metric-row">
+                                <span>ค่าที่บันทึก 1:</span>
+                                <span class="metric-value">${t.val1.toLocaleString()}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span>ค่าที่บันทึก 2:</span>
+                                <span class="metric-value">${t.val2.toLocaleString()}</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-slot-${slot}"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += cardHtml;
+            }
+
+            // สั่งวาด Chart หลังจาก DOM ถูกสร้างเรียบร้อย
+            setTimeout(() => {
+                for (let slot = 1; slot <= maxVisibleSlots; slot++) {
+                    const posObj = topicPositions.find(p => p.slot === slot);
+                    if (posObj) {
+                        const t = defaultTopics.find(item => item.id === posObj.topicId);
+                        renderChart(`chart-slot-${slot}`, t);
+                    }
+                }
+            }, 50);
+        }
+
+        // ฟังก์ชันสร้าง Chart ด้วย Chart.js
+        function renderChart(canvasId, topic) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            // สุ่มรูปแบบกราฟให้เหมาะกับเนื้อหาหัวข้อ
+            let type = 'bar';
+            if ([1, 5, 7].includes(topic.id)) type = 'doughnut';
+            if ([2, 4].includes(topic.id)) type = 'line';
+
+            activeCharts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: ['รายการ A', 'รายการ B', 'รายการ C'],
+                    datasets: [{
+                        data: [topic.val1, topic.val2, (topic.val1 + topic.val2) / 3],
+                        backgroundColor: ['#2563eb', '#3b82f6', '#93c5fd'],
+                        borderColor: '#2563eb',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: type === 'doughnut' ? {} : {
+                        y: { ticks: { font: { size: 8 } } },
+                        x: { ticks: { font: { size: 8 } } }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชัน Export รูปภาพรองรับการส่งทาง LINE / Feishu
+        function exportDashboard() {
+            // สลับไปหน้า Dashboard ก่อนจับภาพ
+            switchTab('tab-dashboard');
+
+            setTimeout(() => {
+                const element = document.getElementById('tab-dashboard');
+                html2canvas(element, {
+                    scale: 2, // เพิ่มความละเอียดภาพ
+                    useCORS: true
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `HR-Dashboard-Report.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            }, 300);
+        }
+
+        // เริ่มต้นการทำงาน
+        renderInputTab();
+    </script>
+</body>
+</html>
